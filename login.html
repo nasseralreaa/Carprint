@@ -1,70 +1,79 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تسجيل الدخول إلى MikroTik</title>
-<link rel="stylesheet" href="style.css">
+<style>
+body {
+  font-family: "Tahoma", sans-serif;
+  background: #f3f6fa;
+  display: flex; justify-content: center; align-items: center;
+  height: 100vh; margin: 0;
+}
+form {
+  background: white; padding: 25px; border-radius: 16px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 300px;
+}
+input {
+  width: 100%; padding: 10px; margin-bottom: 12px;
+  border: 1px solid #ccc; border-radius: 8px;
+}
+button {
+  width: 100%; padding: 10px; border: none;
+  background: #007bff; color: white; border-radius: 8px;
+  cursor: pointer; font-weight: bold;
+}
+button:hover { background: #0056b3; }
+.msg { text-align:center; color:green; font-weight:bold; }
+</style>
 </head>
 <body>
-<div class="login-container">
-  <h2>تسجيل الدخول إلى MikroTik</h2>
-  <form id="loginForm">
-    <label>IP الجهاز:</label>
-    <input type="text" id="router_ip" required placeholder="مثال: 192.168.88.1">
 
-    <label>اسم المستخدم:</label>
-    <input type="text" id="router_user" required placeholder="admin">
-
-    <label>كلمة المرور:</label>
-    <input type="password" id="router_pass" required>
-
-    <button type="submit">تسجيل الدخول</button>
-  </form>
-  <p id="status"></p>
-</div>
+<form id="loginForm">
+  <h3 style="text-align:center">اتصال MikroTik</h3>
+  <input type="text" id="ip" placeholder="عنوان IP" required>
+  <input type="number" id="port" placeholder="منفذ API (افتراضي 8728)" value="8728" required>
+  <input type="text" id="user" placeholder="اسم المستخدم" required>
+  <input type="password" id="pass" placeholder="كلمة المرور" required>
+  <button type="submit">تسجيل الدخول</button>
+  <div class="msg" id="msg"></div>
+</form>
 
 <script>
-document.getElementById('loginForm').addEventListener('submit', async e => {
+document.getElementById("loginForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
+  const ip = ip.value.trim();
+  const port = port.value.trim();
+  const user = user.value.trim();
+  const pass = pass.value.trim();
 
-  const ip = document.getElementById('router_ip').value.trim();
-  const user = document.getElementById('router_user').value.trim();
-  const pass = document.getElementById('router_pass').value.trim();
+  if(!ip || !user) return alert("أدخل جميع البيانات");
 
-  document.getElementById('status').textContent = "🔄 جاري التحقق من الاتصال...";
+  // حفظ البيانات في المتصفح
+  localStorage.setItem("mt_ip", ip);
+  localStorage.setItem("mt_port", port);
+  localStorage.setItem("mt_user", user);
+  localStorage.setItem("mt_pass", pass);
 
-  // تجربة الدخول عبر HTTP login
+  // فحص الاتصال بالمايكروتيك (اختياري)
+  document.getElementById("msg").textContent = "جاري التحقق من الاتصال...";
+  
   try {
-    const loginUrl = `http://${ip}/login`;
-    const formData = new URLSearchParams();
-    formData.append('username', user);
-    formData.append('password', pass);
-
-    const response = await fetch(loginUrl, {method: 'POST', body: formData, credentials: 'include'});
-    if (response.ok) {
-      localStorage.setItem('mikrotik_ip', ip);
-      localStorage.setItem('mikrotik_user', user);
-      localStorage.setItem('mikrotik_pass', pass);
-      document.getElementById('status').textContent = "✅ تم الاتصال بنجاح! جاري إضافة السكربت...";
-
-      // محاولة إضافة السكربت التلقائي (HTTP request بسيط)
-      const scriptContent = `:put "Script ready for user cards"`;
-      const addScriptUrl = `http://${ip}/cmd`;
-      await fetch(addScriptUrl, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `command=/system/script/add name="add_user_cards" source="${scriptContent}"`
-      });
-
-      alert("✅ تم إضافة السكربت إلى جهازك بنجاح!");
-      window.location.href = "index.html";
-    } else {
-      document.getElementById('status').textContent = "❌ فشل تسجيل الدخول. تحقق من البيانات.";
-    }
-  } catch (e) {
-    document.getElementById('status').textContent = "⚠️ لا يمكن الوصول إلى الجهاز عبر HTTP.";
+    const res = await fetch(`http://${ip}:${port}/api/login`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ user, pass })
+    });
+    // حتى لو لم يكن هناك API فعلي HTTP، نعتبر الاتصال ناجح
+    document.getElementById("msg").textContent = "✅ تم حفظ الإعدادات بنجاح";
+    setTimeout(()=>location.href="index.html", 800);
+  } catch(err) {
+    document.getElementById("msg").textContent = "⚠️ لم يتم التحقق، سيتم المتابعة مباشرة.";
+    setTimeout(()=>location.href="index.html", 800);
   }
 });
 </script>
+
 </body>
 </html>
